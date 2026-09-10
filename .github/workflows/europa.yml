@@ -1,0 +1,224 @@
+name: Europa Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Europa branch or tag to build"
+        required: true
+        default: "europa-v1.30.0"
+      version:
+        description: "ONNX Runtime Europa version"
+        required: true
+        default: "1.30.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: Build macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: macos-15-intel
+          - arch: arm64
+            runner: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy
+
+      - name: Build ONNX Runtime
+        run: |
+          export ONNX_ML=1
+          export CMAKE_ARGS="-DONNX_GEN_PB_TYPE_STUBS=ON -DONNX_WERROR=OFF"
+
+          python tools/ci_build/build.py \
+            --update \
+            --build \
+            --config Release \
+            --build_dir build \
+            --skip_submodule_sync \
+            --parallel \
+            --build_shared_lib \
+            --cmake_extra_defines \
+              FETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER \
+              onnxruntime_USE_TELEMETRY=OFF \
+              onnxruntime_BUILD_UNIT_TESTS=OFF \
+              onnxruntime_GENERATE_TEST_REPORTS=OFF
+
+      - name: Verify
+        run: |
+          file build/Release/libonnxruntime.dylib
+          grep "onnxruntime_USE_TELEMETRY" build/Release/CMakeCache.txt
+          otool -L build/Release/libonnxruntime.dylib
+
+      - name: Package
+        run: |
+          mkdir -p artifact
+          tar -czhf artifact/onnxruntime-${{ inputs.ref }}-macos-${{ matrix.arch }}.tar.gz \
+            -C build/Release \
+            libonnxruntime.dylib
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: onnxruntime-macos-${{ matrix.arch }}
+          path: artifact/
+
+  build-linux:
+    name: Build Linux x86_64
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy
+
+      - name: Build ONNX Runtime
+        run: |
+          export ONNX_ML=1
+          export CMAKE_ARGS="-DONNX_GEN_PB_TYPE_STUBS=ON -DONNX_WERROR=OFF"
+
+          python tools/ci_build/build.py \
+            --update \
+            --build \
+            --config Release \
+            --build_dir build \
+            --skip_submodule_sync \
+            --parallel \
+            --build_shared_lib \
+            --cmake_extra_defines \
+              FETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER \
+              onnxruntime_USE_TELEMETRY=OFF \
+              onnxruntime_BUILD_UNIT_TESTS=OFF \
+              onnxruntime_GENERATE_TEST_REPORTS=OFF
+
+      - name: Verify
+        run: |
+          file build/Release/libonnxruntime.so
+          grep "onnxruntime_USE_TELEMETRY" build/Release/CMakeCache.txt
+          ldd build/Release/libonnxruntime.so
+
+      - name: Package
+        run: |
+          mkdir -p artifact
+          tar -czhf artifact/onnxruntime-${{ inputs.ref }}-linux-x86_64.tar.gz \
+            -C build/Release \
+            libonnxruntime.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: onnxruntime-linux-x86_64
+          path: artifact/
+
+  build-windows:
+    name: Build Windows x86_64
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: x64
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy
+
+      - name: Build ONNX Runtime
+        shell: pwsh
+        run: |
+          $env:ONNX_ML = "1"
+          $env:CMAKE_ARGS = "-DONNX_GEN_PB_TYPE_STUBS=ON -DONNX_WERROR=OFF"
+
+          python.exe tools\ci_build\build.py `
+            --update `
+            --build `
+            --config Release `
+            --build_dir build `
+            --skip_submodule_sync `
+            --parallel `
+            --build_shared_lib `
+            --cmake_extra_defines `
+              FETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER `
+              onnxruntime_USE_TELEMETRY=OFF `
+              onnxruntime_BUILD_UNIT_TESTS=OFF `
+              onnxruntime_GENERATE_TEST_REPORTS=OFF
+
+      - name: Verify
+        shell: pwsh
+        run: |
+          Get-Item build\Release\Release\onnxruntime.dll
+          Select-String -Path build\Release\CMakeCache.txt -Pattern "onnxruntime_USE_TELEMETRY:BOOL=OFF"
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          Compress-Archive `
+            -Path build\Release\Release\onnxruntime.dll `
+            -DestinationPath artifact\onnxruntime-${{ inputs.ref }}-windows-x86_64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: onnxruntime-windows-x86_64
+          path: artifact/
+
+  release:
+    name: Create GitHub Release
+    needs:
+      - build-macos
+      - build-linux
+      - build-windows
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}-desktop
+          name: ONNX Runtime Europa v${{ inputs.version }} Desktop
+          generate_release_notes: true
+          files: release/**/*
