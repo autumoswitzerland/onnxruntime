@@ -73,7 +73,7 @@ jobs:
           mkdir -p artifact
           tar -czf artifact/onnxruntime-${{ inputs.ref }}-macos-${{ matrix.arch }}.tar.gz \
             -C build/Release \
-            libonnxruntime*.dylib
+            libonnxruntime.dylib
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
