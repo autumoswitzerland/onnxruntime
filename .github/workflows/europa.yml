@@ -71,7 +71,7 @@ jobs:
       - name: Package
         run: |
           mkdir -p artifact
-          tar -czf artifact/onnxruntime-${{ inputs.ref }}-macos-${{ matrix.arch }}.tar.gz \
+          tar -czhf artifact/onnxruntime-${{ inputs.ref }}-macos-${{ matrix.arch }}.tar.gz \
             -C build/Release \
             libonnxruntime.dylib
 
@@ -129,7 +129,7 @@ jobs:
       - name: Package
         run: |
           mkdir -p artifact
-          tar -czf artifact/onnxruntime-${{ inputs.ref }}-linux-x86_64.tar.gz \
+          tar -czhf artifact/onnxruntime-${{ inputs.ref }}-linux-x86_64.tar.gz \
             -C build/Release \
             libonnxruntime.so
 
