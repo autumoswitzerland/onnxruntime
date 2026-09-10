@@ -167,7 +167,6 @@ jobs:
             --skip_submodule_sync `
             --parallel `
             --build_shared_lib `
-            --cmake_generator "Visual Studio 17 2022" `
             --cmake_extra_defines `
               FETCHCONTENT_TRY_FIND_PACKAGE_MODE=NEVER `
               onnxruntime_USE_TELEMETRY=OFF `
