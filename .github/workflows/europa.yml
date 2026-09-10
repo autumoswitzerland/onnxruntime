@@ -131,7 +131,7 @@ jobs:
           mkdir -p artifact
           tar -czf artifact/onnxruntime-${{ inputs.ref }}-linux-x86_64.tar.gz \
             -C build/Release \
-            libonnxruntime*.so*
+            libonnxruntime.so
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
