@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Branch or tag to build"
+        description: "Europa branch or tag to build"
         required: true
         default: "europa-v1.23.2"
       version:
-        description: "ONNX Runtime version"
+        description: "ONNX Runtime Europa version"
         required: true
         default: "1.23.2"
 
