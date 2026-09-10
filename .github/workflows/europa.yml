@@ -7,6 +7,10 @@ on:
         description: "Branch or tag to build"
         required: true
         default: "europa-v1.23.2"
+      version:
+        description: "ONNX Runtime version"
+        required: true
+        default: "1.23.2"
 
 permissions:
   contents: write
@@ -67,7 +71,9 @@ jobs:
       - name: Package
         run: |
           mkdir -p artifact
-          cp -L build/Release/libonnxruntime*.dylib artifact/
+          tar -czf artifact/onnxruntime-${{ inputs.ref }}-macos-${{ matrix.arch }}.tar.gz \
+            -C build/Release \
+            libonnxruntime*.dylib
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -123,7 +129,9 @@ jobs:
       - name: Package
         run: |
           mkdir -p artifact
-          cp -L build/Release/libonnxruntime*.so* artifact/
+          tar -czf artifact/onnxruntime-${{ inputs.ref }}-linux-x86_64.tar.gz \
+            -C build/Release \
+            libonnxruntime*.so*
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -176,14 +184,16 @@ jobs:
       - name: Verify
         shell: pwsh
         run: |
-          Get-Item build\Release\onnxruntime.dll
-          Select-String "onnxruntime_USE_TELEMETRY" build\Release\CMakeCache.txt
+          Get-Item build\Release\Release\onnxruntime.dll
+          Select-String -Path build\Release\CMakeCache.txt -Pattern "onnxruntime_USE_TELEMETRY:BOOL=OFF"
 
       - name: Package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifact | Out-Null
-          Copy-Item build\Release\onnxruntime.dll artifact\
+          Compress-Archive `
+            -Path build\Release\Release\onnxruntime.dll `
+            -DestinationPath artifact\onnxruntime-${{ inputs.ref }}-windows-x86_64.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -208,7 +218,7 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.23.2-desktop
-          name: ONNX Runtime v1.23.2 Desktop
+          tag_name: v${{ inputs.version }}-desktop
+          name: ONNX Runtime v${{ inputs.version }} Desktop
           generate_release_notes: true
           files: release/**/*
