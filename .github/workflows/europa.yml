@@ -219,6 +219,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}-desktop
-          name: ONNX Runtime v${{ inputs.version }} Desktop
+          name: ONNX Runtime Europa v${{ inputs.version }} Desktop
           generate_release_notes: true
           files: release/**/*
